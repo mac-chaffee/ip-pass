@@ -55,3 +55,21 @@ spec:
 ## Production-readiness
 
 Do not use this in production. Expect bug reports and PRs to be neglected.
+
+## Development
+
+Must have Golang installed. Must install [goimports](https://pkg.go.dev/golang.org/x/tools/cmd/goimports).
+
+Please set up a pre-commit hook by running this command:
+
+```
+cat > .git/hooks/pre-commit << EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+cd \$(git rev-parse --show-toplevel)
+go fmt ./pkg
+goimports -w ./pkg
+go test ./pkg
+EOF
+chmod +x .git/hooks/pre-commit
+```
