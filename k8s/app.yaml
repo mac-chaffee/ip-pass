@@ -21,7 +21,6 @@ spec:
       labels:
         app.kubernetes.io/name: ip-pass
     spec:
-      imagePullPolicy: Always
       automountServiceAccountToken: true
       enableServiceLinks: false
       securityContext:
