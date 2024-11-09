@@ -82,7 +82,20 @@ echo $GH_PAT | docker login ghcr.io -u mac-chaffee --password-stdin
 TAG=v1.0.0
 
 git tag $TAG
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
 docker build . -t ghcr.io/mac-chaffee/ip-pass:$TAG
 docker push ghcr.io/mac-chaffee/ip-pass:$TAG
 git push origin --tags
+```
+
+### Installation
+
+```
+$ kubectl apply -k ./k8s/
+namespace/ip-pass created
+serviceaccount/ip-pass created
+role.rbac.authorization.k8s.io/traefik-middleware-editor created
+rolebinding.rbac.authorization.k8s.io/traefik-middleware-editor-binding created
+service/ip-pass created
+deployment.apps/ip-pass created
 ```
