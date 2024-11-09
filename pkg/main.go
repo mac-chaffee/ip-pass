@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/netip"
@@ -29,17 +30,27 @@ func init() {
 
 // Config is the overall config for ip-pass
 type Config struct {
-	// Name of the Middleware
-	middlewareName string
-	// Namespace of the Middleware
+	middlewareName      string
 	middlewareNamespace string
-	// How long to wait for requests to the k8s API
-	timeout time.Duration
-	// Where the http server should bind, e.g. ":8080"
-	bindAddr string
+	timeout             time.Duration
+	bindAddr            string
 	// The depth in the X-Forwarded-For header to pull the real IP from.
 	// This is a 1-indexed reverse index which works just like https://doc.traefik.io/traefik/middlewares/http/ipallowlist/#ipstrategydepth
 	xffDepth int
+}
+
+func NewConfigFromFlags() *Config {
+	config := &Config{}
+
+	flag.StringVar(&config.middlewareName, "middleware-name", "ip-allowlist", "Name of the Middleware")
+	flag.StringVar(&config.middlewareNamespace, "middleware-namespace", "mealie", "Namespace of the Middleware")
+	flag.DurationVar(&config.timeout, "timeout", 10*time.Second, "Timeout duration for k8s API requests")
+	flag.StringVar(&config.bindAddr, "bind-addr", ":8080", "Address to bind the HTTP server")
+	flag.IntVar(&config.xffDepth, "xff-depth", 1, "Depth in X-Forwarded-For header to pull real IP from")
+
+	flag.Parse()
+
+	return config
 }
 
 type Server struct {
@@ -70,6 +81,7 @@ func getClientCIDR(xForwardedFor string, depth int) (string, error) {
 
 // patchMiddleware has to fetch the current middleware in order to
 // append the CIDR to the IPAllowList instead of overwriting it.
+// This is due to no support for strategic merge patches for CRDs.
 // We call this function from inside a RetryOnConflict block
 // to avoid race conditions.
 func (s *Server) patchMiddleware(ctx context.Context, clientCIDR string) (bool, error) {
@@ -212,14 +224,7 @@ func createMiddlewareIfMissing(ctx context.Context, c client.Client, config *Con
 
 func main() {
 	logger := log.Log.WithName("entrypoint")
-	// TODO: load this from CLI args
-	appConfig := &Config{
-		middlewareName:      "ip-allowlist",
-		middlewareNamespace: "mealie",
-		timeout:             time.Duration(10) * time.Second,
-		bindAddr:            ":8080",
-		xffDepth:            1,
-	}
+	appConfig := NewConfigFromFlags()
 
 	// Create scheme and add Traefik types
 	scheme := runtime.NewScheme()
