@@ -5,25 +5,23 @@ metadata:
   namespace: ip-pass
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   name: traefik-middleware-editor
-  namespace: ip-pass
 rules:
 - apiGroups: ["traefik.io"]
   resources: ["middlewares"]
   verbs: ["get", "list", "watch", "create", "update", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: traefik-middleware-editor-binding
-  namespace: ip-pass
 subjects:
 - kind: ServiceAccount
   name: ip-pass
   namespace: ip-pass
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: traefik-middleware-editor
   apiGroup: rbac.authorization.k8s.io
