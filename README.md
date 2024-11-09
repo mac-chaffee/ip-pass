@@ -73,3 +73,16 @@ go test ./pkg
 EOF
 chmod +x .git/hooks/pre-commit
 ```
+
+### Releasing
+
+```
+echo $GH_PAT | docker login ghcr.io -u mac-chaffee --password-stdin
+
+TAG=v1.0.0
+
+git tag $TAG
+docker build . -t ghcr.io/mac-chaffee/ip-pass:$TAG
+docker push ghcr.io/mac-chaffee/ip-pass:$TAG
+git push origin --tags
+```
