@@ -4,6 +4,8 @@ metadata:
   name: ip-pass
   namespace: ip-pass
 ---
+# You can make these permissions more restrictive by deploying ip-pass
+# in the same namespace as the Middleware it manages.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

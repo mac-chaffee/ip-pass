@@ -47,11 +47,11 @@ type Config struct {
 func NewConfigFromFlags() *Config {
 	config := &Config{}
 
-	flag.StringVar(&config.middlewareName, "middleware-name", "ip-allowlist", "Name of the Middleware")
-	flag.StringVar(&config.middlewareNamespace, "middleware-namespace", "mealie", "Namespace of the Middleware")
-	flag.DurationVar(&config.timeout, "timeout", 10*time.Second, "Timeout duration for k8s API requests")
-	flag.StringVar(&config.bindAddr, "bind-addr", ":8080", "Address to bind the HTTP server")
-	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP")
+	flag.StringVar(&config.middlewareName, "middleware-name", "ip-pass-allowlist", "Name of the Middleware.")
+	flag.StringVar(&config.middlewareNamespace, "middleware-namespace", "default", "Namespace of the Middleware.")
+	flag.DurationVar(&config.timeout, "timeout", 10*time.Second, "Timeout duration for k8s API requests.")
+	flag.StringVar(&config.bindAddr, "bind-addr", ":8080", "Address to bind the HTTP server.")
+	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP.")
 
 	flag.Parse()
 
@@ -315,6 +315,7 @@ func main() {
 	})
 	http.HandleFunc("/add-ip", server.addIPHandler)
 	http.HandleFunc("/api/add-ip", server.addIPHandler)
+	http.HandleFunc("/healthz", func(http.ResponseWriter, *http.Request) {})
 
 	logger.Info("Starting server", "addr", appConfig.bindAddr)
 	err = http.ListenAndServe(appConfig.bindAddr, nil)

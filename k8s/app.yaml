@@ -30,18 +30,23 @@ spec:
         - name: ip-pass
           image: ghcr.io/mac-chaffee/ip-pass:v1.1.0
           imagePullPolicy: Always
+          args:
+          # Change these values for your environment
+            - -xff-depth=1
+            - -middleware-name=ip-allowlist
+            - -middleware-namespace=mealie
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
-          # readinessProbe:
-          #   httpGet:
-          #     path: /health
-          #     port: http
-          #   initialDelaySeconds: 1
-          #   failureThreshold: 3
-          #   timeoutSeconds: 1
-          #   periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 1
+            failureThreshold: 3
+            timeoutSeconds: 2
+            periodSeconds: 10
           resources:
             requests:
               cpu: 10m

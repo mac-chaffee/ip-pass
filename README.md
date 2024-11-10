@@ -14,14 +14,14 @@ You should think of ip-pass as the equivalent of moving your SSH port to somethi
 
 Start the server, which will create a Middleware if one does not exist:
 ```
-$ go run pkg/main.go --xff-depth=1
+$ go run pkg/main.go -xff-depth=1
 {"level":"info","ts":"2024-11-08T22:17:04-05:00","logger":"entrypoint","msg":"Created Middleware","name":"ip-allowlist","namespace":"default"}
 {"level":"info","ts":"2024-11-08T22:17:04-05:00","logger":"entrypoint","msg":"Starting server","addr":":8080"}
 ```
 ```
 $ kubectl get middlewares.traefik.io -A
-NAMESPACE   NAME             AGE
-default     ip-allowlist     12s
+NAMESPACE   NAME                  AGE
+default     ip-pass-allowlist     12s
 ```
 
 Allow-list an IP:
@@ -36,13 +36,13 @@ Content-Length: 0
 Verify that the IP was allow-listed (we mask all IPs to the nearest /64 for IPv6 or /24 for IPv4):
 
 ```
-$ kubectl get middlewares.traefik.io ip-allowlist -n mealie -o yaml
+$ kubectl get middlewares.traefik.io ip-pass-allowlist -o yaml
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   creationTimestamp: "2024-11-09T03:17:04Z"
   generation: 2
-  name: ip-allowlist
+  name: ip-pass-allowlist
   namespace: default
   resourceVersion: "12075625"
   uid: 012d7815-20e0-476e-a9a2-6f52c2dd16ce
@@ -50,6 +50,23 @@ spec:
   ipWhiteList:
     sourceRange:
     - 2001:db8::/64
+```
+
+## Configuration
+
+```
+-bind-addr string
+  	Address to bind the HTTP server. (default ":8080")
+-kubeconfig string
+  	Paths to a kubeconfig. Only required if out-of-cluster.
+-middleware-name string
+  	Name of the Middleware. (default "ip-pass-allowlist")
+-middleware-namespace string
+  	Namespace of the Middleware. (default "default")
+-timeout duration
+  	Timeout duration for k8s API requests. (default 10s)
+-xff-depth int
+  	Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP.
 ```
 
 ## Production-readiness
