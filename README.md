@@ -69,10 +69,6 @@ spec:
   	Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP.
 ```
 
-## Production-readiness
-
-Do not use this in production. Expect bug reports and PRs to be neglected.
-
 ## Development
 
 Must have Golang installed. Must install [goimports](https://pkg.go.dev/golang.org/x/tools/cmd/goimports).
@@ -80,42 +76,56 @@ Must have Golang installed. Must install [goimports](https://pkg.go.dev/golang.o
 Please set up a pre-commit hook by running this command:
 
 ```
-cat > .git/hooks/pre-commit << EOF
-#!/usr/bin/env bash
-set -Eeuo pipefail
-cd \$(git rev-parse --show-toplevel)
-go fmt ./pkg
-goimports -w ./pkg
-go test ./pkg
-EOF
-chmod +x .git/hooks/pre-commit
+cp ./pre-commit.sh .git/hooks/pre-commit
 ```
 
 ### Releasing
 
+First, remember to update the tag in `k8s/app.yaml` and commit this before starting a release.
+
 ```
 echo $GH_PAT | docker login ghcr.io -u mac-chaffee --password-stdin
-
-TAG=v1.1.0
-
-export DOCKER_DEFAULT_PLATFORM=linux/amd64
-docker build . -t ghcr.io/mac-chaffee/ip-pass:$TAG
-docker push ghcr.io/mac-chaffee/ip-pass:$TAG
-git tag $TAG
-git push origin --tags
+TAG=vX.Y.X
+./release.sh
 ```
 
-Remember to update the tag in `k8s/app.yaml`.
+## Installation - Kubernetes
 
-### Installation
+This project uses [Kustomize](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/). In your own repo, you can create your own `kustomization.yaml` file overlay like this:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+# Set the ref to the latest available tag
+- https://github.com/mac-chaffee/ip-pass//k8s?ref=vX.Y.Z
+# You may want to deploy other supporting resources such as a namespace
+- your-other-resources.yaml
+patches:
+# Example of setting custom CLI args
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/args
+      value:
+        - -middleware-name=custom-name
+        - -middleware-namespace=custom-namespace
+  target:
+    kind: Deployment
+    name: ip-pass
+```
+
+Then install it with `kubectl apply -k <path>`
 
 ```
 $ kubectl apply -k ./k8s/
-namespace/ip-pass created
 serviceaccount/ip-pass created
-role.rbac.authorization.k8s.io/traefik-middleware-editor created
-rolebinding.rbac.authorization.k8s.io/traefik-middleware-editor-binding created
+clusterrole.rbac.authorization.k8s.io/traefik-middleware-editor created
+clusterrolebinding.rbac.authorization.k8s.io/traefik-middleware-editor-binding created
 service/ip-pass created
 deployment.apps/ip-pass created
 ingress.networking.k8s.io/ip-pass created
 ```
+
+## Production-readiness
+
+Do not use this in production. Expect bug reports, feature requests, and PRs to be neglected.

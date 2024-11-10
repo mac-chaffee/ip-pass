@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
 - app.yaml
 - rbac.yaml
+
+namespace: ip-pass
