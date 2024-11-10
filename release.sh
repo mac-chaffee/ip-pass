@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-cd \$(git rev-parse --show-toplevel)
+cd $(git rev-parse --show-toplevel)
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 docker build . -t ghcr.io/mac-chaffee/ip-pass:$TAG
 docker push ghcr.io/mac-chaffee/ip-pass:$TAG
