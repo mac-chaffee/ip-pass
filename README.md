@@ -79,14 +79,16 @@ chmod +x .git/hooks/pre-commit
 ```
 echo $GH_PAT | docker login ghcr.io -u mac-chaffee --password-stdin
 
-TAG=v1.0.0
+TAG=v1.0.1
 
-git tag $TAG
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 docker build . -t ghcr.io/mac-chaffee/ip-pass:$TAG
 docker push ghcr.io/mac-chaffee/ip-pass:$TAG
+git tag $TAG
 git push origin --tags
 ```
+
+Remember to update the tag in `k8s/app.yaml`.
 
 ### Installation
 
@@ -98,4 +100,5 @@ role.rbac.authorization.k8s.io/traefik-middleware-editor created
 rolebinding.rbac.authorization.k8s.io/traefik-middleware-editor-binding created
 service/ip-pass created
 deployment.apps/ip-pass created
+ingress.networking.k8s.io/ip-pass created
 ```

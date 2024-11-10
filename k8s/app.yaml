@@ -28,7 +28,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: ip-pass
-          image: ghcr.io/mac-chaffee/ip-pass:v1.0.0
+          image: ghcr.io/mac-chaffee/ip-pass:v1.0.1
           imagePullPolicy: Always
           ports:
             - name: http
