@@ -5,6 +5,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -68,6 +69,8 @@ type Server struct {
 // Ex: "203.0.113.111, 203.0.113.222", "1" -> "203.0.113.0/24"
 // Ex: "2001:0db8::123" -> "2001:db8::/64"
 func getClientCIDR(xForwardedFor string, depth int) (string, error) {
+	// When depth=0, we just check the single observed client IP
+	depth = max(depth, 1)
 	xff := strings.Split(xForwardedFor, ",")
 	if len(xff) < depth {
 		return "", fmt.Errorf("X-Forwarded-For header was empty or too short")
@@ -168,10 +171,10 @@ func (s *Server) addIPHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	ips := r.Header.Get("X-Forwarded-For")
 	if s.config.xffDepth == 0 {
-		// xff disabled, so just pull IP from the observed client IP
-		ips = strings.Split(r.RemoteAddr, ":")[0]
+		// xff disabled, so just pull IP from the observed client IP.
+		ips, _, _ = net.SplitHostPort(r.RemoteAddr)
 	}
-	clientCIDR, err := getClientCIDR(ips, min(s.config.xffDepth, 1))
+	clientCIDR, err := getClientCIDR(ips, s.config.xffDepth)
 	if err != nil {
 		s.log.Error(err, "Failed to parse client IP address", "IPs", ips)
 		http.Error(w, err.Error(), http.StatusBadRequest)

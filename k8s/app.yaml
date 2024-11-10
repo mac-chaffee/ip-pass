@@ -23,7 +23,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: ip-pass
-          image: ghcr.io/mac-chaffee/ip-pass:v1.1.1
+          image: ghcr.io/mac-chaffee/ip-pass:v1.1.2
           imagePullPolicy: Always
           # Change these values for your environment
           args: []
@@ -33,7 +33,7 @@ spec:
               protocol: TCP
           readinessProbe:
             httpGet:
-              path: /health
+              path: /healthz
               port: http
             initialDelaySeconds: 1
             failureThreshold: 3

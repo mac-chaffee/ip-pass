@@ -20,6 +20,13 @@ func TestGetClientCIDR(t *testing.T) {
 			wantErr:       false,
 		},
 		{
+			name:          "single IPv4, round depth up to 1 to support -xff-depth=0",
+			xForwardedFor: "203.0.113.111",
+			depth:         0,
+			want:          "203.0.113.0/24",
+			wantErr:       false,
+		},
+		{
 			name:          "multiple IPv4 addresses with depth 1",
 			xForwardedFor: "203.0.113.111, 203.0.122., 203.0.113.133",
 			depth:         1,
