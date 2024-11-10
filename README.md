@@ -27,7 +27,7 @@ default     ip-allowlist     12s
 Allow-list an IP:
 
 ```
-$ curl -iX PUT -H "X-Forwarded-For: 2001:0db8::123" localhost:8080/add-ip
+$ curl -iX POST -H "X-Forwarded-For: 2001:0db8::123" localhost:8080/api/add-ip
 HTTP/1.1 201 Created
 Date: Sat, 09 Nov 2024 03:21:40 GMT
 Content-Length: 0

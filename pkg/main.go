@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"flag"
 	"fmt"
 	"net/http"
@@ -23,6 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
+
+//go:embed static/*
+var embeded embed.FS
 
 func init() {
 	log.SetLogger(zap.New())
@@ -155,12 +159,18 @@ func (s *Server) patchMiddleware(ctx context.Context, clientCIDR string) (bool, 
 }
 
 func (s *Server) addIPHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	clientCIDR, err := getClientCIDR(r.Header.Get("X-Forwarded-For"), s.config.xffDepth)
+	xff := r.Header.Get("X-Forwarded-For")
+	if len(xff) == 0 {
+		// Fallback to the observed client IP, probably should make this configurable
+		xff = strings.Split(r.RemoteAddr, ":")[0]
+	}
+	clientCIDR, err := getClientCIDR(xff, s.config.xffDepth)
 	if err != nil {
+		s.log.Error(err, "Failed to parse X-Forwarded-For", "xff", xff)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -172,15 +182,22 @@ func (s *Server) addIPHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
+		s.log.Error(err, "Failed to patch middleware", "xff", xff)
 		http.Error(w, fmt.Sprintf("Failed to patch middleware: %v", err), http.StatusInternalServerError)
 		return
 	}
-	if created {
-		w.WriteHeader(http.StatusCreated)
+	// Support returning a good status code for API requests (hacky, sorry)
+	if strings.HasPrefix(r.RequestURI, "/api/") {
+		if created {
+			w.WriteHeader(http.StatusCreated)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
 	} else {
-		w.WriteHeader(http.StatusNoContent)
+		w.Header().Set("Location", "/success")
+		w.WriteHeader(http.StatusSeeOther)
 	}
-	// TODO: Support GET requests and arbitrary redirects?
+	// TODO: Support GET requests and arbitrary redirects? Arbitrary link in response?
 }
 
 // createMiddlewareIfMissing ensures that the configured Middleware exists in the cluster
@@ -222,6 +239,14 @@ func createMiddlewareIfMissing(ctx context.Context, c client.Client, config *Con
 	return true, nil
 }
 
+// addHeaders adds security and caching headers for serving static content
+func addHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "script-src 'self'")
+	w.Header().Set("Cache-Control", "max-age=1800")
+}
+
 func main() {
 	logger := log.Log.WithName("entrypoint")
 	appConfig := NewConfigFromFlags()
@@ -257,7 +282,36 @@ func main() {
 		config: appConfig,
 		log:    log.Log.WithName("server"),
 	}
+
+	indexBytes, err := embeded.ReadFile("static/index.html")
+	if err != nil {
+		panic(err)
+	}
+	indexContent := string(indexBytes)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Fix Golang's non-compliant behavior of always returning the index instead of 404s
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		addHeaders(w)
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(indexContent))
+	})
+
+	successBytes, err := embeded.ReadFile("static/success.html")
+	if err != nil {
+		panic(err)
+	}
+	successContent := string(successBytes)
+
+	http.HandleFunc("/success", func(w http.ResponseWriter, r *http.Request) {
+		addHeaders(w)
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(successContent))
+	})
 	http.HandleFunc("/add-ip", server.addIPHandler)
+	http.HandleFunc("/api/add-ip", server.addIPHandler)
 
 	logger.Info("Starting server", "addr", appConfig.bindAddr)
 	err = http.ListenAndServe(appConfig.bindAddr, nil)
