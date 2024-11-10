@@ -77,3 +77,22 @@ spec:
       name: http
   selector:
     app.kubernetes.io/name: ip-pass
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ip-pass
+  labels:
+    app.kubernetes.io/name: ip-pass
+spec:
+  rules:
+    - host: access.macchaffee.com
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ip-pass
+                port:
+                  number: 8080
