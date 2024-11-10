@@ -40,7 +40,8 @@ type Config struct {
 	bindAddr            string
 	// The depth in the X-Forwarded-For header to pull the real IP from.
 	// This is a 1-indexed reverse index which works just like https://doc.traefik.io/traefik/middlewares/http/ipallowlist/#ipstrategydepth
-	xffDepth int
+	xffDepth  int
+	ignoreXff bool
 }
 
 func NewConfigFromFlags() *Config {
@@ -50,7 +51,7 @@ func NewConfigFromFlags() *Config {
 	flag.StringVar(&config.middlewareNamespace, "middleware-namespace", "mealie", "Namespace of the Middleware")
 	flag.DurationVar(&config.timeout, "timeout", 10*time.Second, "Timeout duration for k8s API requests")
 	flag.StringVar(&config.bindAddr, "bind-addr", ":8080", "Address to bind the HTTP server")
-	flag.IntVar(&config.xffDepth, "xff-depth", 1, "Depth in X-Forwarded-For header to pull real IP from")
+	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP")
 
 	flag.Parse()
 
@@ -77,6 +78,8 @@ func getClientCIDR(xForwardedFor string, depth int) (string, error) {
 		return "", err
 	}
 
+	// Round up to the nearest (normal) subnet in case of CGNAT for IPv4
+	// or privacy extensions in IPv6
 	if clientAddr.Is4() {
 		return netip.PrefixFrom(clientAddr, 24).Masked().String(), nil
 	}
@@ -163,14 +166,14 @@ func (s *Server) addIPHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	xff := r.Header.Get("X-Forwarded-For")
-	if len(xff) == 0 {
-		// Fallback to the observed client IP, probably should make this configurable
-		xff = strings.Split(r.RemoteAddr, ":")[0]
+	ips := r.Header.Get("X-Forwarded-For")
+	if s.config.xffDepth == 0 {
+		// xff disabled, so just pull IP from the observed client IP
+		ips = strings.Split(r.RemoteAddr, ":")[0]
 	}
-	clientCIDR, err := getClientCIDR(xff, s.config.xffDepth)
+	clientCIDR, err := getClientCIDR(ips, min(s.config.xffDepth, 1))
 	if err != nil {
-		s.log.Error(err, "Failed to parse X-Forwarded-For", "xff", xff)
+		s.log.Error(err, "Failed to parse client IP address", "IPs", ips)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -182,7 +185,7 @@ func (s *Server) addIPHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		s.log.Error(err, "Failed to patch middleware", "xff", xff)
+		s.log.Error(err, "Failed to patch middleware", "cidr", clientCIDR)
 		http.Error(w, fmt.Sprintf("Failed to patch middleware: %v", err), http.StatusInternalServerError)
 		return
 	}

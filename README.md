@@ -14,7 +14,7 @@ You should think of ip-pass as the equivalent of moving your SSH port to somethi
 
 Start the server, which will create a Middleware if one does not exist:
 ```
-$ go run pkg/main.go
+$ go run pkg/main.go --xff-depth=1
 {"level":"info","ts":"2024-11-08T22:17:04-05:00","logger":"entrypoint","msg":"Created Middleware","name":"ip-allowlist","namespace":"default"}
 {"level":"info","ts":"2024-11-08T22:17:04-05:00","logger":"entrypoint","msg":"Starting server","addr":":8080"}
 ```
@@ -79,7 +79,7 @@ chmod +x .git/hooks/pre-commit
 ```
 echo $GH_PAT | docker login ghcr.io -u mac-chaffee --password-stdin
 
-TAG=v1.0.1
+TAG=v1.1.0
 
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 docker build . -t ghcr.io/mac-chaffee/ip-pass:$TAG
