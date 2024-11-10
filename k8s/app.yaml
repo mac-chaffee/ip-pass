@@ -23,7 +23,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: ip-pass
-          image: ghcr.io/mac-chaffee/ip-pass:v1.1.2
+          image: ghcr.io/mac-chaffee/ip-pass:v1.1.3
           imagePullPolicy: Always
           # Change these values for your environment
           args: []
