@@ -85,7 +85,7 @@ First, remember to update the tag in `k8s/app.yaml` and commit this before start
 
 ```
 echo $GH_PAT | docker login ghcr.io -u mac-chaffee --password-stdin
-TAG=vX.Y.X
+export TAG=vX.Y.X
 ./release.sh
 ```
 
