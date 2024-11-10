@@ -52,7 +52,7 @@ func NewConfigFromFlags() *Config {
 	flag.StringVar(&config.middlewareNamespace, "middleware-namespace", "default", "Namespace of the Middleware.")
 	flag.DurationVar(&config.timeout, "timeout", 10*time.Second, "Timeout duration for k8s API requests.")
 	flag.StringVar(&config.bindAddr, "bind-addr", ":8080", "Address to bind the HTTP server.")
-	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP.")
+	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP. The ipStrategy on the middleware will use 'max(xffdepth-1, 1)'.")
 
 	flag.Parse()
 
@@ -227,7 +227,7 @@ func createMiddlewareIfMissing(ctx context.Context, c client.Client, config *Con
 		}
 	}
 	// If we got here, the Middleware doesn't exist, so create it
-	basicAuth := &traefikv1alpha1.Middleware{
+	middleware := &traefikv1alpha1.Middleware{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      config.middlewareName,
 			Namespace: config.middlewareNamespace,
@@ -236,10 +236,13 @@ func createMiddlewareIfMissing(ctx context.Context, c client.Client, config *Con
 			// k3s still uses the old name
 			IPWhiteList: &dynamic.IPWhiteList{
 				SourceRange: []string{},
+				IPStrategy: &dynamic.IPStrategy{
+					Depth: max(config.xffDepth-1, 1),
+				},
 			},
 		},
 	}
-	if err := c.Create(ctx, basicAuth); err != nil {
+	if err := c.Create(ctx, middleware); err != nil {
 		return false, fmt.Errorf("Failed to create middleware: %v", err)
 	}
 	return true, nil
