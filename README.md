@@ -24,7 +24,11 @@ NAMESPACE   NAME                  AGE
 default     ip-pass-allowlist     12s
 ```
 
-Allow-list an IP:
+Users can use the web interface to gain access, which can be configured to automatically redirect the user to a target site:
+
+![Screenshot of the ip-pass web interface which includes a green button saying "Gain Access" and a short description](./screenshot.png)
+
+Or users can use the API:
 
 ```
 $ curl -iX POST -H "X-Forwarded-For: 2001:0db8::123" localhost:8080/api/add-ip
