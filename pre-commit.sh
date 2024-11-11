@@ -4,4 +4,3 @@ cd $(git rev-parse --show-toplevel)
 go fmt ./pkg
 goimports -w ./pkg
 go test ./pkg
-EOF
