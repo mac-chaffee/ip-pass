@@ -41,8 +41,12 @@ type Config struct {
 	bindAddr            string
 	// The depth in the X-Forwarded-For header to pull the real IP from.
 	// This is a 1-indexed reverse index which works just like https://doc.traefik.io/traefik/middlewares/http/ipallowlist/#ipstrategydepth
-	xffDepth  int
-	ignoreXff bool
+	xffDepth         int
+	ignoreXff        bool
+	redirectLocation string
+	redirectDelay    time.Duration
+	maxQPS           float64
+	maxBurst         int
 }
 
 func NewConfigFromFlags() *Config {
@@ -52,7 +56,11 @@ func NewConfigFromFlags() *Config {
 	flag.StringVar(&config.middlewareNamespace, "middleware-namespace", "default", "Namespace of the Middleware.")
 	flag.DurationVar(&config.timeout, "timeout", 10*time.Second, "Timeout duration for k8s API requests.")
 	flag.StringVar(&config.bindAddr, "bind-addr", ":8080", "Address to bind the HTTP server.")
-	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP. The ipStrategy on the middleware will use 'max(xffdepth-1, 1)'.")
+	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Depth in X-Forwarded-For header to pull the real IP from. Set to zero to ignore XFF and just use the observed client IP. The ipStrategy on the middleware will use 'max(xffdepth-1, 1)'.")
+	flag.StringVar(&config.redirectLocation, "redirect-location", "/success", "Where to redirect the user after allow-listing them.")
+	flag.DurationVar(&config.redirectDelay, "redirect-delay", 50*time.Millisecond, "How long to wait before redirecting (since allow-list updates may take time to propagate).")
+	flag.Float64Var(&config.maxQPS, "max-qps", 1.0, "Maximum kube-api requests per second (to prevent people from DoS'ing your cluster).")
+	flag.IntVar(&config.maxBurst, "max-burst", 1, "Maximum amount of bursting for kube-api requests (to prevent people from DoS'ing your cluster).")
 
 	flag.Parse()
 
@@ -200,10 +208,10 @@ func (s *Server) addIPHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		}
 	} else {
-		w.Header().Set("Location", "/success")
+		time.Sleep(s.config.redirectDelay)
+		w.Header().Set("Location", s.config.redirectLocation)
 		w.WriteHeader(http.StatusSeeOther)
 	}
-	// TODO: Support GET requests and arbitrary redirects? Arbitrary link in response?
 }
 
 // createMiddlewareIfMissing ensures that the configured Middleware exists in the cluster
@@ -268,6 +276,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	// Prevent too many updates
+	cfg.QPS = float32(appConfig.maxQPS)
+	cfg.Burst = appConfig.maxBurst
 
 	c, err := client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {

@@ -59,14 +59,22 @@ spec:
   	Address to bind the HTTP server. (default ":8080")
 -kubeconfig string
   	Paths to a kubeconfig. Only required if out-of-cluster.
+-max-burst int
+  	Maximum amount of bursting for kube-api requests (to prevent people from DoS'ing your cluster). (default 1)
+-max-qps float
+  	Maximum kube-api requests per second (to prevent people from DoS'ing your cluster). (default 1)
 -middleware-name string
   	Name of the Middleware. (default "ip-pass-allowlist")
 -middleware-namespace string
   	Namespace of the Middleware. (default "default")
+-redirect-delay duration
+  	How long to wait before redirecting (since allow-list updates may take time to propagate). (default 50ms)
+-redirect-location string
+  	Where to redirect the user after allow-listing them. (default "/success")
 -timeout duration
   	Timeout duration for k8s API requests. (default 10s)
 -xff-depth int
-  	Depth in X-Forwarded-For header to pull real IP from. Set to zero to ignore XFF and just use the observed client IP.
+  	Depth in X-Forwarded-For header to pull the real IP from. Set to zero to ignore XFF and just use the observed client IP. The ipStrategy on the middleware will use 'max(xffdepth-1, 1)'.
 ```
 
 ## Development
