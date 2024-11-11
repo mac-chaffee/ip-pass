@@ -56,7 +56,7 @@ func NewConfigFromFlags() *Config {
 	flag.StringVar(&config.middlewareNamespace, "middleware-namespace", "default", "Namespace of the Middleware.")
 	flag.DurationVar(&config.timeout, "timeout", 10*time.Second, "Timeout duration for k8s API requests.")
 	flag.StringVar(&config.bindAddr, "bind-addr", ":8080", "Address to bind the HTTP server.")
-	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Depth in X-Forwarded-For header to pull the real IP from. Set to zero to ignore XFF and just use the observed client IP. The ipStrategy on the middleware will use 'max(xffdepth-1, 1)'.")
+	flag.IntVar(&config.xffDepth, "xff-depth", 0, "Number of elements from the end of the X-Forwarded-For header (starting with 1) to pull the real IP from. Defaults to zero which ignores XFF and just uses the observed client IP. The ipStrategy on the middleware will use 'max(xffDepth-1, 0)'.")
 	flag.StringVar(&config.redirectLocation, "redirect-location", "/success", "Where to redirect the user after allow-listing them.")
 	flag.DurationVar(&config.redirectDelay, "redirect-delay", 50*time.Millisecond, "How long to wait before redirecting (since allow-list updates may take time to propagate).")
 	flag.Float64Var(&config.maxQPS, "max-qps", 1.0, "Maximum kube-api requests per second (to prevent people from DoS'ing your cluster).")
@@ -245,7 +245,7 @@ func createMiddlewareIfMissing(ctx context.Context, c client.Client, config *Con
 			IPWhiteList: &dynamic.IPWhiteList{
 				SourceRange: []string{},
 				IPStrategy: &dynamic.IPStrategy{
-					Depth: max(config.xffDepth-1, 1),
+					Depth: max(config.xffDepth-1, 0),
 				},
 			},
 		},

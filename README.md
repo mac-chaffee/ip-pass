@@ -15,7 +15,7 @@ You should think of ip-pass as the equivalent of moving your SSH port to somethi
 Start the server, which will create a Middleware if one does not exist:
 ```
 $ go run pkg/main.go -xff-depth=1
-{"level":"info","ts":"2024-11-08T22:17:04-05:00","logger":"entrypoint","msg":"Created Middleware","name":"ip-allowlist","namespace":"default"}
+{"level":"info","ts":"2024-11-08T22:17:04-05:00","logger":"entrypoint","msg":"Created Middleware","name":"ip-pass-allowlist","namespace":"default"}
 {"level":"info","ts":"2024-11-08T22:17:04-05:00","logger":"entrypoint","msg":"Starting server","addr":":8080"}
 ```
 ```
@@ -48,6 +48,8 @@ metadata:
   uid: 012d7815-20e0-476e-a9a2-6f52c2dd16ce
 spec:
   ipWhiteList:
+    ipStrategy:
+      depth: 1
     sourceRange:
     - 2001:db8::/64
 ```
@@ -74,8 +76,16 @@ spec:
 -timeout duration
   	Timeout duration for k8s API requests. (default 10s)
 -xff-depth int
-  	Depth in X-Forwarded-For header to pull the real IP from. Set to zero to ignore XFF and just use the observed client IP. The ipStrategy on the middleware will use 'max(xffdepth-1, 1)'.
+  	Number of elements from the end of the X-Forwarded-For header (starting with 1) to pull the real IP from. Defaults to zero which ignores XFF and just uses the observed client IP. The ipStrategy on the middleware will use 'max(xffDepth-1, 0)'.
 ```
+
+### IP address detection
+
+Typically, you will deploy ip-pass behind some kind of load balancer, which means ip-pass's default behavior of just adding the observed source IP to the allow list won't work for you (the load balancer's IP would end up in the allow list instead of the user's).
+
+Instead, you should set `-xff-depth` to something other than zero to correctly parse the [`X-Forwarded-For`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) header. Since the header may contain multiple IPs (one per proxy that the request passed through), you need to set the `-xff-depth` carefully.
+
+The depth refers to the number of elements from the end of the list (starting with 1) when determining which IP to use. It works just like [Traefik's depth parameter](https://doc.traefik.io/traefik/middlewares/http/ipallowlist/#ipstrategydepth). This strange method of counting is beneficial because you can use this rule of thumb: "The correct depth should equal the number of reverse proxies in front of ip-pass".
 
 ## Development
 
@@ -85,6 +95,10 @@ Please set up a pre-commit hook by running this command:
 
 ```
 cp ./pre-commit.sh .git/hooks/pre-commit
+```
+
+```
+go run pkg/main.go -help
 ```
 
 ### Releasing
